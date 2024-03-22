@@ -19,9 +19,6 @@ from PIL import Image, ImageOps
 import nilearn as nl
 import nibabel as nib
 import nilearn.plotting as nlplt
-# !pip install git+https://github.com/miykael/gif_your_nifti # nifti to gif 
-# import gif_your_nifti.core as gif2nif
-
 
 # ml libs
 import keras
@@ -39,7 +36,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, Early
 from tensorflow.keras.layers.experimental import preprocessing
 
 
-# Make numpy printouts easier to read.
+
 np.set_printoptions(precision=3, suppress=True)
 
 # DEFINE seg-areas  
