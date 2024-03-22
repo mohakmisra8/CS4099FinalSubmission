@@ -30,7 +30,7 @@ import tqdm
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 
-pytorch3dpath = "EfficientNet-PyTorch-3D"
+# pytorch3dpath = "EfficientNet-PyTorch-3D"
 # pytorch3dpath = "3DAutoencoder/Transformer/EfficientNet-PyTorch-3D"
 # einops = "/home/mm510/Dissertation/3DAutoencoder/Transformer/einops"
 # einops = "3DAutoencoder/Transformer/einops"
@@ -40,7 +40,7 @@ data_directory = "/data/"
 csv_directory = "UCSF-PDGM-metadata_v2.csv"
 # csv_directory = "UCSF-PDGM-metadata_v2.csv"
 
-sys.path.append(pytorch3dpath)
+# sys.path.append(pytorch3dpath)
 # sys.path.append(einops)
 
 from efficientnet_pytorch_3d import EfficientNet3D

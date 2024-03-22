@@ -1,3 +1,6 @@
+"""
+The Notebook script was converted to Python and run for training.
+"""
 import os
 # import cv2
 import glob

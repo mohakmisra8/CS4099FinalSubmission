@@ -84,56 +84,7 @@ def get_dataloader(
     )
     return dataloader
 
-class AutoEncoderDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, phase: str = "test", is_resize: bool = True):
-        self.df = df
-        self.phase = phase
-        self.augmentations = get_augmentations(phase)
-        self.data_types = ['_FLAIR.nii', '_T1.nii', '_T1c.nii', '_T2.nii']
-        self.is_resize = is_resize
-        
-    def __len__(self):
-        return self.df.shape[0]
-    
-    def __getitem__(self, idx):
-        id_ = self.df.loc[idx, 'ID']
-        # Split the ID and extract the number part
-        id_split = id_.split('-')
-        id_number = id_split[-1].zfill(4)  # Ensure it has leading zeros
-        # Construct the updated ID with leading zeros
-        id_padded = '-'.join(id_split[:-1] + [id_number])
 
-        full_path = self.df.loc[idx, 'path']
-        root_path = os.path.dirname(full_path)
-        # load all modalities
-        images = []
-        for data_type in self.data_types:
-            # Use the updated ID with leading zeros
-            img_path = os.path.join(root_path, id_padded + data_type)
-            img = self.load_img(img_path)
-
-            img = self.normalize(img)
-            images.append(img.astype(np.float32))
-        img = np.stack(images)
-        img = np.moveaxis(img, (0, 1, 2, 3), (0, 3, 2, 1))
-
-        return {
-            "Id": id_,
-            "data": img,
-            "label": img,
-        }
-
-    
-    def load_img(self, file_path):
-        data = nib.load(file_path)
-        data = np.asarray(data.dataobj)
-        return data
-    
-    def normalize(self, data: np.ndarray,  mean=0.0, std=1.0):
-        """Normilize image value between 0 and 1."""
-        data_min = np.min(data)
-        return (data - data_min) / (np.max(data) - data_min)
-    
     
 # def get_augmentations(phase):
 #     list_transforms = []
