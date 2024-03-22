@@ -1,2 +1,12 @@
 /raid/mm510/MOVED/new_model/.Trash-0/
 /raid/mm510/MOVED/new_model/EfficientNet-PyTorch-3D/
+*.pth 
+*.npy
+/raid/mm510/MOVED/new_model/ClassImbalanceExperiments/val
+/raid/mm510/MOVED/new_model/ClassImbalanceExperiments/masks
+*.h5
+.ipynb_checkpoints
+__pycache__
+/raid/mm510/MOVED/new_model/ClassImbalanceExperiments/masks
+.git
+
