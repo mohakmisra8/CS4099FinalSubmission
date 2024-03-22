@@ -93,6 +93,9 @@ def get_dataloader(
     )
     return dataloader
 
+"""
+This Trainer class and the methods inside it have been taken from: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder?scriptVersionId=47043797&cellId=23 by Marco Polo
+"""
 class Trainer:
     """
     Factory for training proccess.
@@ -168,7 +171,9 @@ class Trainer:
         loss = self.criterion(logits, targets)
         return loss, logits
     
-        
+"""
+This method has been adapted to include a progress bar with the tqdm progress bar as the model took a very long time to run (roughly 20 min per epoch), so tracking progress was important
+"""       
     def _do_epoch(self, epoch: int, phase: str):
         print(f"{phase} epoch: {epoch} | time: {time.strftime('%H:%M:%S')}")
 
@@ -179,7 +184,7 @@ class Trainer:
         running_loss = 0.0
         self.optimizer.zero_grad()
 
-        # Add tqdm progress bar here
+        # tqdm progress bar 
         with tqdm(total=total_batches, desc=f"{phase} Epoch {epoch}", unit='batch') as pbar:
             for itr, data_batch in enumerate(dataloader):
                 images, targets = data_batch['image'], data_batch['mask']

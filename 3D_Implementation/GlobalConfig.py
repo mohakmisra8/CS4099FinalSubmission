@@ -53,14 +53,18 @@ import random as random
 
 import warnings
 warnings.simplefilter("ignore")
-
+"""
+This class to load and store all the data within a Config class is adapted from Marco Polo: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder?scriptVersionId=47043797&cellId=10
+"""
 
 data_directory = '/data'
 excluded_path = '/data/UCSF-PDGM-0541_nifti'
 excluded_dirname = os.path.basename(excluded_path)
 if excluded_path in data_directory:
     data_directory = data_directory.replace(excluded_path, '')
-
+"""
+The inspiration for TRAIN_DATASET_PATH and VAL_DATASET_PATH to split the data and load the data came from RASTISLAV: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=7
+"""
 
 all_files = os.listdir(data_directory)
 

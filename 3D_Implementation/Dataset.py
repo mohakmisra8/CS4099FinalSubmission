@@ -52,12 +52,20 @@ from albumentations.pytorch import ToTensor, ToTensorV2
 import warnings
 warnings.simplefilter("ignore")
 
+"""
+This class is used to load the data from the dataset. The class and the methods have been based on the work from the author Marco Polo: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder#3DAutoEncoder
+This class includes all the preprocessing methods necessary before the data is loaded.
+"""
+
 def get_augmentations(phase):
     list_transforms = []
     
     list_trfms = Compose(list_transforms)
     return list_trfms
 
+"""
+This method returns the dataloader for the model training
+"""
 
 def get_dataloader(
     dataset: torch.utils.data.Dataset,
@@ -67,7 +75,7 @@ def get_dataloader(
     batch_size: int = 1,
     num_workers: int = 4,
 ):
-    '''Returns: dataloader for the model training'''
+
     df = pd.read_csv(path_to_csv)
     
     train_df = df.loc[df['fold'] != fold].reset_index(drop=True)
@@ -84,40 +92,10 @@ def get_dataloader(
     )
     return dataloader
 
-
+"""
+Rather than splitting on Brats201D id from the link we split on the basis of the ID in the csv
+"""
     
-# def get_augmentations(phase):
-#     list_transforms = []
-    
-#     list_trfms = Compose(list_transforms)
-#     return list_trfms
-
-
-# def get_dataloader(
-#     dataset: torch.utils.data.Dataset,
-#     path_to_csv: str,
-#     phase: str,
-#     fold: int = 0,
-#     batch_size: int = 1,
-#     num_workers: int = 8,
-# ):
-#     '''Returns: dataloader for the model training'''
-#     df = pd.read_csv(path_to_csv)
-    
-#     train_df = df.loc[df['fold'] != fold].reset_index(drop=True)
-#     val_df = df.loc[df['fold'] == fold].reset_index(drop=True)
-
-#     df = train_df if phase == "train" else val_df
-#     dataset = dataset(df, phase)
-#     dataloader = DataLoader(
-#         dataset,
-#         batch_size=batch_size,
-#         num_workers=num_workers,
-#         pin_memory=True,
-#         shuffle=True,   
-#     )
-#     return dataloader
-
 class BratsDataset(Dataset):
     def __init__(self, df: pd.DataFrame, phase: str = "test", is_resize: bool = True):
         self.df = df
@@ -129,6 +107,9 @@ class BratsDataset(Dataset):
     def __len__(self):
         return self.df.shape[0]
     
+    """
+    Method adapted for the dataset in order to retrieve the data 
+    """
     def __getitem__(self, idx):
         id_ = self.df.loc[idx, 'ID']
         id_split = id_.split('-')
@@ -189,11 +170,18 @@ class BratsDataset(Dataset):
         data_min = np.min(data)
         return (data - data_min) / (np.max(data) - data_min)
     
+    """
+    Images are not normalised as the GPU is very powerful, otherwise it is best to uncomment the code
+    and resize the image by 2 to reduce computational load
+    """
     def resize(self, data: np.ndarray):
         data = resize(data, (155, 240, 240), preserve_range=True)
-        # data = resize(data, (64, 96, 96), preserve_range=True)
+        # data = resize(data, (78, 120, 120), preserve_range=True)
         return data
     
+    """
+    Mask labels are one hot encoded here and are stacked
+    """
     def preprocess_mask_labels(self, mask: np.ndarray):
 
         mask_WT = mask.copy()

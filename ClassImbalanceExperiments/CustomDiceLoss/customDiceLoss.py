@@ -9,17 +9,18 @@ from tifffile import imsave
 import tensorflow as tf
 from tensorflow.keras.losses import Loss
 import segmentation_models_3D as sm
-# segmentation_models = '/exp1/experiment1Softmax/segmentation_models/'
-
-
-# sys.path.append(segmentation_models)
 import tensorflow.keras.backend as K
+import random
 
 from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 
 from tensorflow.keras.backend import clear_session
 clear_session()
+
+"""
+The pipeline and code is adapted and based on https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net/notebook#Let's-understand-the-3D-U-net-architecture
+"""
 
 TRAIN_DATASET_PATH = '/data'
 
@@ -33,17 +34,18 @@ sample_filename_mask = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmenta
 test_image_flair=nib.load(sample_filename).get_fdata()
 print(test_image_flair.max())
 #Scalers are applied to 1D so let us reshape and then reshape back to original shape. 
-# test_image_flair=scaler.fit_transform(test_image_flair.reshape(-1, test_image_flair.shape[-1])).reshape(test_image_flair.shape)
+test_image_flair=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_FLAIR.nii').get_fdata()
+test_image_flair=scaler.fit_transform(test_image_flair.reshape(-1, test_image_flair.shape[-1])).reshape(test_image_flair.shape)
 
 
 test_image_t1=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T1.nii').get_fdata()
-# test_image_t1=scaler.fit_transform(test_image_t1.reshape(-1, test_image_t1.shape[-1])).reshape(test_image_t1.shape)
+test_image_t1=scaler.fit_transform(test_image_t1.reshape(-1, test_image_t1.shape[-1])).reshape(test_image_t1.shape)
 
 test_image_t1ce=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T1c.nii').get_fdata()
-# test_image_t1ce=scaler.fit_transform(test_image_t1ce.reshape(-1, test_image_t1ce.shape[-1])).reshape(test_image_t1ce.shape)
+test_image_t1ce=scaler.fit_transform(test_image_t1ce.reshape(-1, test_image_t1ce.shape[-1])).reshape(test_image_t1ce.shape)
 
 test_image_t2=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T2.nii').get_fdata()
-# test_image_t2=scaler.fit_transform(test_image_t2.reshape(-1, test_image_t2.shape[-1])).reshape(test_image_t2.shape)
+test_image_t2=scaler.fit_transform(test_image_t2.reshape(-1, test_image_t2.shape[-1])).reshape(test_image_t2.shape)
 
 test_mask=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmentation.nii').get_fdata()
 test_mask=test_mask.astype(np.uint8)
@@ -52,13 +54,11 @@ print(np.unique(test_mask))  #0, 1, 2, 4 (Need to reencode to 0, 1, 2, 3)
 test_mask[test_mask==4] = 3  #Reassign mask values 4 to 3
 print(np.unique(test_mask)) 
 
-import os
-import random
 
-# Directory containing your data
+# Directory containing data
 data_directory = '/data'
 
-# Exclude the specific path you want to skip
+# This path is empty
 excluded_path = '/data/UCSF-PDGM-0541_nifti'
 excluded_dirname = os.path.basename(excluded_path)
 if excluded_path in data_directory:
@@ -67,30 +67,25 @@ if excluded_path in data_directory:
 # List all files in the directory
 all_files = os.listdir(data_directory)
 
-# Exclude the specific path you want to skip
-# excluded_path = '/data/UCSF-PDGM-0541_nifti'
-# if excluded_path in all_files:
-#     all_files.remove(excluded_path)
-
 # Shuffle the list of files
 random.shuffle(all_files)
 
-# Define the number of files for training and validation
+# the number of files for training and validation
 num_train_files = 400
 
 # Split the shuffled list into training and validation sets
 train_files = all_files[:num_train_files]
 val_files = all_files[num_train_files:]
 
-# Define the paths for training and validation datasets
+# Define the paths for training and validation datasets, inspiration taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net
 TRAIN_DATASET_PATH = [os.path.join(data_directory, file) for file in train_files]
 VAL_DATASET_PATH = [os.path.join(data_directory, file) for file in val_files]
 
 # Print the first few file paths for verification
 print("Training Dataset Paths:")
-print(TRAIN_DATASET_PATH[:5])  # Print the first 5 paths
+print(TRAIN_DATASET_PATH[:5])  
 print("\nValidation Dataset Paths:")
-print(VAL_DATASET_PATH[:5])    # Print the first 5 paths
+print(VAL_DATASET_PATH[:5])   
 
 train_t2_list = []
 train_t1ce_list = []
@@ -121,7 +116,7 @@ for directory in TRAIN_DATASET_PATH:
 import os
 import glob
 
-# Initialize lists for different types of files
+# Initialise lists for different types of files
 val_t2_list = []
 val_t1ce_list = []
 val_flair_list = []
@@ -161,122 +156,125 @@ if index_to_check < len(val_t2_list):
     print(f"Mask: {val_mask_list[index_to_check]}")
 else:
     print("Index is out of range.")
+    
+"""
+Seperate images and masks
+"""
+images_dir = '/exp1/ClassImbalanceExperiments/images'
+masks_dir = '/exp1/ClassImbalanceExperiments/masks'
 
-images_dir = '/exp1/experiment1Softmax/images'
-masks_dir = '/exp1/experiment1Softmax/masks'
 
-# Ensure the directories exist
 os.makedirs(images_dir, exist_ok=True)
 os.makedirs(masks_dir, exist_ok=True)
 
-images_dir = '/exp1/experiment1Softmax/val/images'
-masks_dir = '/exp1/experiment1Softmax/val/masks'
+images_dir = '/exp1/eClassImbalanceExperiments/val/images'
+masks_dir = '/exp1/ClassImbalanceExperiments/val/masks'
 
-# Ensure the directories exist
+
 os.makedirs(images_dir, exist_ok=True)
 os.makedirs(masks_dir, exist_ok=True)
 
 models = '/exp1/savedModels'
-# masks_dir = '/exp1/new_model/experiment1Softmax/val/masks'
 
-# Ensure the directories exist
+
 os.makedirs(models, exist_ok=True)
-# os.makedirs(masks_dir, exist_ok=True)
 
-# for img in range(len(train_t2_list)):  # Using t2_list as all lists are of the same size
-#     print("Now preparing image and masks number: ", img)
+"""
+Preprocessing and augmentation techniques taken from: Merge channels, crop, patchify, save. Adapted from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=30
+"""
 
-#     # Load and normalize T2 images
-# #     print(train_t2_list[img])
-#     temp_image_t2 = nib.load(train_t2_list[img]).get_fdata()
-#     temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
-# #     unique_values = np.unique(temp_image_t2)
-# #     print(unique_values)
+for img in range(len(train_t2_list)):  
+    print("Now preparing image and masks number: ", img)
 
-#     # Load and normalize T1ce images
-# #     print(train_t1ce_list[img])
-#     temp_image_t1ce = nib.load(train_t1ce_list[img]).get_fdata()
-#     temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+    # Load and normalize T2 images
+    temp_image_t2 = nib.load(train_t2_list[img]).get_fdata()
+    temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
 
-#     # Load and normalize FLAIR images
-# #     print(train_flair_list[img])
-#     temp_image_flair = nib.load(train_flair_list[img]).get_fdata()
-#     temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
 
-#     # Load masks and adjust values
-# #     print(train_mask_list[img])
-#     temp_mask = nib.load(train_mask_list[img]).get_fdata()
-#     temp_mask = temp_mask.astype(np.uint8)
+    # Load and normalize T1ce images
+
+    temp_image_t1ce = nib.load(train_t1ce_list[img]).get_fdata()
+    temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+
+    # Load and normalize FLAIR images
+
+    temp_image_flair = nib.load(train_flair_list[img]).get_fdata()
+    temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+
+    # Load masks and adjust values
+
+    temp_mask = nib.load(train_mask_list[img]).get_fdata()
+    temp_mask = temp_mask.astype(np.uint8)
     
-#     temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
-#     print("here")
-#     unique_values = np.unique(temp_mask)
-#     print(unique_values)
+    temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
+    unique_values = np.unique(temp_mask)
+    print(unique_values)
 
-#     # Combine images along a new dimension
-#     temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
+    # Combine images along a new dimension
+    temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
     
-#     #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
-#     #cropping x, y, and z
-#     temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
-#     temp_mask = temp_mask[56:184, 56:184, 13:141]
+    #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
+    #cropping x, y, and z
+    temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
+    temp_mask = temp_mask[56:184, 56:184, 13:141]
     
-#     val, counts = np.unique(temp_mask, return_counts=True)
+    val, counts = np.unique(temp_mask, return_counts=True)
     
-#     if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
-#         print("Save Me")
-#         temp_mask = to_categorical(temp_mask, num_classes=4)
-#         np.save('/exp1/experiment1Softmax/images/image_'+str(img)+'.npy', temp_combined_images)
-#         np.save('/exp1/experiment1Softmax/masks/mask_'+str(img)+'.npy', temp_mask)
-#     else:
-#         print("I am useless")
+    if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
+        print("Mask saved")
+        temp_mask = to_categorical(temp_mask, num_classes=4)
+        np.save('/exp1/ClassImbalanceExperiments/images/image_'+str(img)+'.npy', temp_combined_images)
+        np.save('/exp1/ClassImbalanceExperiments/masks/mask_'+str(img)+'.npy', temp_mask)
+    else:
+        print("Not necessary")
         
-# for img in range(len(val_t2_list)):  # Using t2_list as all lists are of the same size
-#     print("Now preparing image and masks number: ", img)
+for img in range(len(val_t2_list)): 
+    print("Now preparing image and masks number: ", img)
 
-#     # Load and normalize T2 images
-# #     print(train_t2_list[img])
-#     temp_image_t2 = nib.load(val_t2_list[img]).get_fdata()
-# #     temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
-#     unique_values = np.unique(temp_image_t2)
-# #     print(unique_values)
+    # Load and normalize T2 images
 
-#     # Load and normalize T1ce images
-#     temp_image_t1ce = nib.load(val_t1ce_list[img]).get_fdata()
-# #     temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+    temp_image_t2 = nib.load(val_t2_list[img]).get_fdata()
+    temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+    unique_values = np.unique(temp_image_t2)
 
-#     # Load and normalize FLAIR images
-#     temp_image_flair = nib.load(val_flair_list[img]).get_fdata()
-# #     temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+    # Load and normalize T1ce images
+    temp_image_t1ce = nib.load(val_t1ce_list[img]).get_fdata()
+    temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
 
-#     # Load masks and adjust values
-#     temp_mask = nib.load(val_mask_list[img]).get_fdata()
-#     temp_mask = temp_mask.astype(np.uint8)
+    # Load and normalize FLAIR images
+    temp_image_flair = nib.load(val_flair_list[img]).get_fdata()
+    temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+
+    # Load masks and adjust values
+    temp_mask = nib.load(val_mask_list[img]).get_fdata()
+    temp_mask = temp_mask.astype(np.uint8)
     
-#     temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
-#     print("here")
-#     unique_values = np.unique(temp_mask)
-#     print(unique_values)
+    temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
+    print("here")
+    unique_values = np.unique(temp_mask)
+    print(unique_values)
 
-#     # Combine images along a new dimension
-#     temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
+    # Combine images along a new dimension
+    temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
     
-#     #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
-#     #cropping x, y, and z
-#     temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
-#     temp_mask = temp_mask[56:184, 56:184, 13:141]
+    #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
+    #cropping x, y, and z
+    temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
+    temp_mask = temp_mask[56:184, 56:184, 13:141]
     
-#     val, counts = np.unique(temp_mask, return_counts=True)
+    val, counts = np.unique(temp_mask, return_counts=True)
     
-#     if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
-#         print("Save Me")
-#         temp_mask = to_categorical(temp_mask, num_classes=4)
-#         np.save('/exp1/experiment1Softmax/val/images/image_'+str(img)+'.npy', temp_combined_images)
-#         np.save('/exp1/experiment1Softmax/val/masks/mask_'+str(img)+'.npy', temp_mask)
-#     else:
-#         print("I am useless")
+    if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
+        print("Save Me")
+        temp_mask = to_categorical(temp_mask, num_classes=4)
+        np.save('/exp1/ClassImbalanceExperiments/val/images/image_'+str(img)+'.npy', temp_combined_images)
+        np.save('/exp1/ClassImbalanceExperiments/val/masks/mask_'+str(img)+'.npy', temp_mask)
+    else:
+        print("Not necessary")
 
-
+"""
+The load_img and imageLoader methods are taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=37
+"""
 
 def load_img(img_dir, img_list):
     images = []
@@ -302,8 +300,11 @@ def imageLoader(img_dir, img_list, mask_dir, mask_list, batch_size):
 from matplotlib import pyplot as plt
 import random
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+"""
+Sort all the lists where the dirctories so that the corresponding images and masks match
+"""
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 train_img_list = sorted(os.listdir(train_img_dir))
 train_mask_list = sorted(os.listdir(train_mask_dir))
 
@@ -314,16 +315,13 @@ train_img_datagen = imageLoader(train_img_dir, train_img_list, train_mask_dir, t
 
 import os
 import numpy as np
-#import imageloader
-#from custom_datagen import imageLoader
-#import tensorflow as tf
 import keras
 from matplotlib import pyplot as plt
 import glob
 import random
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 
 img_list = sorted(os.listdir(train_img_dir))
 msk_list = sorted(os.listdir(train_mask_dir))
@@ -332,12 +330,12 @@ import pandas as pd
 columns = ['0', '1', '2', '3']
 df = pd.DataFrame(columns=columns)
 
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 train_mask_list = sorted(glob.glob(os.path.join(train_mask_dir, '*.npy')))
 
 for img_path in train_mask_list:
     temp_image = np.load(img_path)
-    temp_image = np.argmax(temp_image, axis=0)  # Assuming the mask has shape (height, width, channels) and axis=3 is incorrect.
+    temp_image = np.argmax(temp_image, axis=0)  
     val, counts = np.unique(temp_image, return_counts=True)
     
     # Ensure counts are matched to the correct columns based on `val`
@@ -350,19 +348,21 @@ for img_path in train_mask_list:
     
     df = df.append(counts_dict, ignore_index=True)
 
-# Define the column names for the DataFrame
+# the column names for the DataFrame
 columns = ['0', '1', '2', '3']
+
 # Initialize an empty DataFrame with these columns
 df = pd.DataFrame(columns=columns)
 
-# Define the directory containing your mask files
-val_mask_dir = '/exp1/experiment1Softmax/val/masks/'
+
+val_mask_dir = '/exp1/ClassImbalanceExperiments/val/masks/'
+
 # Sort the list of mask file paths
 val_mask_list = sorted(glob.glob(os.path.join(val_mask_dir, '*.npy')))
 
 # Iterate through each sorted mask file
 for img_path in val_mask_list:
-    # Load the mask using numpy
+    # Load the mask 
     temp_image = np.load(img_path)
     # Apply argmax to convert one-hot encoding to class labels, assuming the last axis is channels
     temp_image = np.argmax(temp_image, axis=3)
@@ -380,6 +380,9 @@ for img_path in val_mask_list:
     # Append the counts dictionary as a new row in the DataFrame
     df = df.append(counts_dict, ignore_index=True)
 
+"""
+Taken from https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=46
+"""
 label_0 = df['0'].sum()
 label_1 = df['1'].sum()
 label_2 = df['2'].sum()
@@ -394,11 +397,11 @@ wt3 = round((total_labels/(n_classes*label_3)), 2)
 
 #Define the image generators for training and validation
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 
-val_img_dir = "/exp1/experiment1Softmax/val/images/"
-val_mask_dir = "/exp1/experiment1Softmax/val/masks/"
+val_img_dir = "/exp1/ClassImbalanceExperiments/val/images/"
+val_mask_dir = "/exp1/ClassImbalanceExperiments/val/maskss/"
 
 # Retrieve and sort the list of training images and masks
 train_img_list = sorted(os.listdir(train_img_dir))
@@ -408,9 +411,8 @@ train_mask_list = sorted(os.listdir(train_mask_dir))
 val_img_list = sorted(os.listdir(val_img_dir))
 val_mask_list = sorted(os.listdir(val_mask_dir))
 
-# Define a function to extract the sort key (e.g., ID) from the file name
+# Method to extrack key from a file name
 def extract_sort_key(filename):
-    # This is an example; adjust the slicing as per your file naming convention
     return filename.split('_')[0]
 
 # Sort the training image and mask lists
@@ -423,6 +425,9 @@ val_mask_list = sorted(val_mask_list, key=extract_sort_key)
 
 batch_size = 2
 
+"""
+Inspiration taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=39
+"""
 train_img_datagen = imageLoader(train_img_dir, train_img_list, 
                                 train_mask_dir, train_mask_list, batch_size)
 
@@ -430,6 +435,10 @@ train_img_datagen = imageLoader(train_img_dir, train_img_list,
 
 val_img_datagen = imageLoader(val_img_dir, val_img_list, 
                                 val_mask_dir, val_mask_list, batch_size)
+
+"""
+These metrics have been taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=18 by Rastislav
+"""
 ################################### DICE LOSSES USED##############################################################
 # dice loss as defined above for 4 classes
 def dice_coef(y_true, y_pred, smooth=1.0):
@@ -487,7 +496,11 @@ def specificity(y_true, y_pred):
     possible_negatives = K.sum(K.round(K.clip(1-y_true, 0, 1)))
     return true_negatives / (possible_negatives + K.epsilon())
 
-################################### 3D DICE LOSSES REMIMPLEMENTATION##############################################################
+"""
+These methods are a potential reimplementation of the same coefficients but for 3D
+"""
+
+################################### 3D DICE LOSSES REIMPLEMENTATION##############################################################
 
 # dice loss as defined above for 4 classes
 # def dice_coef(y_true, y_pred, smooth=1e-6):
@@ -543,6 +556,10 @@ def specificity(y_true, y_pred):
 #     return true_negatives / (possible_negatives + K.epsilon())
 
 ###################################################################################################################################
+
+"""
+Model architecture taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=53
+"""
 
 from keras.models import Model
 from keras.layers import Input, Conv3D, MaxPooling3D, concatenate, Conv3DTranspose, BatchNormalization, Dropout, Lambda
@@ -618,6 +635,10 @@ def simple_unet_model(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classe
     
     return model
 
+"""
+Custom Dice Loss methods implemented for each class based on the work done by Huang et al. (2021)
+"""
+
 def dice_loss(y_true, y_pred, smooth=1e-6):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
@@ -674,6 +695,9 @@ def hybrid_loss_2(alpha, beta, gamma, delta, y_true, y_pred):
     
     return alpha * dice_combined_loss + beta * rl_com_loss + gamma * rl_core_loss + delta * rl_enh_loss
 
+"""
+This is taken from https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=57
+"""
 wt0, wt1, wt2, wt3 = 0.25,0.25,0.25,0.25
 import segmentation_models_3D as sm
 dice_loss = sm.losses.DiceLoss(class_weights=np.array([wt0, wt1, wt2, wt3])) 
@@ -681,7 +705,9 @@ focal_loss = sm.losses.CategoricalFocalLoss()
 total_loss = dice_loss + (1 * focal_loss)
 
 
- 
+ """
+ This model compilation has taken inspiration from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=34 and https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=61
+ """
 model = simple_unet_model(128, 128, 128, 3, 4)
 model.compile(loss=total_loss, optimizer=keras.optimizers.Adam(learning_rate=0.001), metrics = ['accuracy',sm.metrics.IOUScore(threshold=0.5), dice_coef, precision, sensitivity, specificity, dice_coef_necrotic, dice_coef_edema ,dice_coef_enhancing] )
 print(model.input_shape)
@@ -695,19 +721,24 @@ batch_size = 8
 steps_per_epoch = len(train_img_list)//batch_size
 val_steps_per_epoch = len(val_img_list)//batch_size
 
+"""
+This is inspired from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=30
+"""
+
 csv_logger = CSVLogger('dice_loss.log', separator=',', append=False)
 
 
 callbacks = [
-#     keras.callbacks.EarlyStopping(monitor='loss', min_delta=0,
-#                               patience=2, verbose=1, mode='auto'),
+
       keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2,
                               patience=2, min_lr=0.000001, verbose=1),
-#  keras.callbacks.ModelCheckpoint(filepath = 'model_.{epoch:02d}-{val_loss:.6f}.m5',
-#                             verbose=1, save_best_only=True, save_weights_only = True),
+
         csv_logger
     ]
 
+"""
+Model trained for few epochs due to the model taking 44 minutes per epoch
+"""
 history=model.fit(train_img_datagen,
           steps_per_epoch=steps_per_epoch,
           epochs=35,
@@ -717,14 +748,15 @@ history=model.fit(train_img_datagen,
           validation_steps=val_steps_per_epoch,
           )
 
-
-
-
 model.save("custom_dice_loss.h5")
 
 import numpy as np
 from keras.models import load_model
 import segmentation_models_3D as sm
+
+"""
+The validation and prediction methods are taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=30
+"""
 
 steps_per_epoch = len(train_img_list)//batch_size
 val_steps_per_epoch = len(val_img_list)//batch_size
@@ -777,7 +809,7 @@ IOU_keras = MeanIoU(num_classes=n_classes)
 IOU_keras.update_state(test_pred_batch_argmax, test_mask_batch_argmax)
 print("Mean IoU =", IOU_keras.result().numpy())
 
-
+### There were two methods used to evaluate the model: the first was this, the second was model.evaluate which is in the custom_dice_loss_notebook.ipynb
 dice_coefficient_value = dice_coef(test_mask_batch, test_pred_batch)
 precision_value = precision(test_mask_batch, test_pred_batch)
 sensitivity_value = sensitivity(test_mask_batch, test_pred_batch)
@@ -794,7 +826,9 @@ print("Dice Coefficient Necrotic =", dice_coef_necrotic_value.numpy())
 print("Dice Coefficient Edema =", dice_coef_edema_value.numpy())
 print("Dice Coefficient Enhancing =", dice_coef_enhancing_value.numpy())
 
-# img_num = 82
+"""
+Testing, adapted from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=68
+"""
 
 test_img = np.load("/exp1/experiment1Softmax/val/images/image_66.npy")
 

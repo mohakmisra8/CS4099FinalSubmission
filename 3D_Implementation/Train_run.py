@@ -64,6 +64,11 @@ from GlobalConfig import *
 from Image3dToGIF3d import Image3dToGIF3d, ShowResult, merging_two_gif
 from Trainer import Trainer
 
+"""
+This class contains my main method where I train the model and use it to predict the tumors.
+This is inspired by the work done by Marco Polo: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder
+"""
+
 def get_augmentations(phase):
     list_transforms = []
     
@@ -96,6 +101,9 @@ def get_dataloader(
     )
     return dataloader
 
+"""
+Both the compute_scores_per_classes and compute_results classes have been taken from: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder?scriptVersionId=47043797&cellId=30 by Marco Polo
+"""
 def compute_scores_per_classes(model,
                                dataloader,
                                classes):
@@ -161,8 +169,6 @@ def compute_results(model,
 
 def main():
 
-#     sample_filename = '/data/mm510/UCSF-PDGM-v3/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_FLAIR.nii'
-#     sample_filename_mask = '/data/mm510/UCSF-PDGM-v3/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmentation.nii'
 
     sample_filename = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_FLAIR.nii'
     sample_filename_mask = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmentation.nii'
@@ -241,7 +247,6 @@ def main():
     #  Varying density along a streamline
     ax4 = fig.add_subplot(gs[1, 1:3])
 
-    #ax4.imshow(np.ma.masked_where(mask_WT[:,:,65]== False,  mask_WT[:,:,65]), cmap='summer', alpha=0.6)
     l1 = ax4.imshow(mask_WT[:,:,65], cmap='summer',)
     l2 = ax4.imshow(np.ma.masked_where(mask_TC[:,:,65]== False,  mask_TC[:,:,65]), cmap='rainbow', alpha=0.6)
     l3 = ax4.imshow(np.ma.masked_where(mask_ET[:,:,65] == False, mask_ET[:,:,65]), cmap='winter', alpha=0.6)
@@ -262,12 +267,11 @@ def main():
     fig.savefig("data_sample.png", format="png",  pad_inches=0.2, transparent=False, bbox_inches='tight')
     fig.savefig("data_sample.svg", format="svg",  pad_inches=0.2, transparent=False, bbox_inches='tight')
 
-    # Directory containing your data
-#     data_directory = '/data/mm510/UCSF-PDGM-v3/'
+    # Directory containing data
     data_directory = '/data'
 
-    # Exclude the specific path you want to skip
-#     excluded_path = '/data/mm510/UCSF-PDGM-v3/UCSF-PDGM-0541_nifti'
+    # Exclude this path as it does not have any data
+
     excluded_path = '/data/UCSF-PDGM-0541_nifti'
     excluded_dirname = os.path.basename(excluded_path)
     if excluded_path in data_directory:
@@ -276,41 +280,35 @@ def main():
     # List all files in the directory
     all_files = os.listdir(data_directory)
 
-    # Exclude the specific path you want to skip
-    # excluded_path = '/data/UCSF-PDGM-0541_nifti'
-    # if excluded_path in all_files:
-    #     all_files.remove(excluded_path)
 
     # Shuffle the list of files
     random.shuffle(all_files)
 
-    # Define the number of files for training and validation
+    # the number of files for training and validation
     num_train_files = 400
 
     # Split the shuffled list into training and validation sets
     train_files = all_files[:num_train_files]
     val_files = all_files[num_train_files:]
 
-    # Define the paths for training and validation datasets
+    # the paths for training and validation datasets
     TRAIN_DATASET_PATH = [os.path.join(data_directory, file) for file in train_files]
     VAL_DATASET_PATH = [os.path.join(data_directory, file) for file in val_files]
 
-    # Print the first few file paths for verification
+    # printing the first few file paths for verification
     print("Training Dataset Paths:")
-    print(TRAIN_DATASET_PATH[:5])  # Print the first 5 paths
+    print(TRAIN_DATASET_PATH[:5]) 
     print("\nValidation Dataset Paths:")
-    print(VAL_DATASET_PATH[:5])    # Print the first 5 paths
+    print(VAL_DATASET_PATH[:5])  
 
-    # Load the dataset
-#     survival_info_df = pd.read_csv('/home/mm510/Dissertation/UCSF-PDGM-metadata_v2.csv')
 
     config = GlobalConfig()
     seed_everything(config.seed)
     
     survival_info_df = pd.read_csv('metadata.csv')
 
-    # Further processing, including age ranking and removing specific IDs
-    survival_info_df["Age_rank"] = survival_info_df["Age at MRI"] // 10 * 10
+    # Further processing, to remove non existant IDs
+#     survival_info_df["Age_rank"] = survival_info_df["Age at MRI"] // 10 * 10
     survival_info_df = survival_info_df[survival_info_df['ID'] != 'UCSF-PDGM-541'].reset_index(drop=True)
     survival_info_df = survival_info_df[survival_info_df['ID'] != 'UCSF-PDGM-181'].reset_index(drop=True)
     survival_info_df = survival_info_df[survival_info_df['ID'] != 'UCSF-PDGM-315'].reset_index(drop=True)
@@ -320,7 +318,6 @@ def main():
     survival_info_df = survival_info_df[survival_info_df['ID'] != 'UCSF-PDGM-278'].reset_index(drop=True)
 
     # Adding path information with zero-padded ID
-#     survival_info_df['path'] = survival_info_df['ID'].apply(lambda id_: f"/data/mm510/UCSF-PDGM-v3/{'-'.join(id_.split('-')[:-1]) + '-' + id_.split('-')[-1].zfill(4)}_nifti/{'-'.join(id_.split('-')[:-1]) + '-' + id_.split('-')[-1].zfill(4)}_FLAIR.nii")
     survival_info_df['path'] = survival_info_df['ID'].apply(lambda id_: f"/data/{'-'.join(id_.split('-')[:-1]) + '-' + id_.split('-')[-1].zfill(4)}_nifti/{'-'.join(id_.split('-')[:-1]) + '-' + id_.split('-')[-1].zfill(4)}_FLAIR.nii")
 
 
@@ -329,7 +326,8 @@ def main():
     for fold, (_, val_index) in enumerate(skf.split(survival_info_df, survival_info_df["Age_rank"])):
         survival_info_df.loc[val_index, "fold"] = fold
 
-    # Assigning 'phase' based on 'BraTS21 Segmentation Cohort' and 'fold'
+    # Assigning 'phase' based on 'BraTS21 Segmentation Cohort' and 'fold' in the csv file
+    # This has been adapted from: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder?scriptVersionId=47043797&cellId=30
     survival_info_df['phase'] = 'test'
     survival_info_df.loc[survival_info_df['BraTS21 Segmentation Cohort'] == 'Training', 'phase'] = 'train'
     survival_info_df.loc[survival_info_df['fold'] == 0, 'phase'] = 'val'
@@ -339,17 +337,16 @@ def main():
     val_df = survival_info_df[survival_info_df['phase'] == 'val']
     test_df = survival_info_df[survival_info_df['phase'] == 'test']
 
-    # Print the shapes of the split data
+    # Print the shapes of the split data to check validation
     print("Training data shape:", train_df.shape)
     print("Validation data shape:", val_df.shape)
     print("Testing data shape:", test_df.shape)
 
-    # Saving the entire DataFrame with phases to a CSV file
+    # The entire DataFrame is saved with phases to a CSV file
     survival_info_df.to_csv('train_data.csv', index=False)
 
     print("Data saved to train_data.csv")
 
-#     dataloader = get_dataloader(dataset=BratsDataset, path_to_csv='/home/mm510/Dissertation/new_model/train_data.csv', phase='valid', fold=0, num_workers= 0)
     dataloader = get_dataloader(dataset=BratsDataset, path_to_csv='train_data.csv', phase='valid', fold=0, num_workers= 8)
     len(dataloader)
 
@@ -382,24 +379,26 @@ def main():
                   num_epochs=50,
                   path_to_csv = config.path_to_csv,)
 
-    if config.pretrained_model_path is not None:
-        trainer.load_predtrain_model(config.pretrained_model_path)
+    # used for loading pretrained model
+#     if config.pretrained_model_path is not None:
+#         trainer.load_predtrain_model(config.pretrained_model_path)
         
-        # if need - load the logs.      
-        train_logs = pd.read_csv(config.train_logs_path)
-        trainer.losses["train"] =  train_logs.loc[:, "train_loss"].to_list()
-        trainer.losses["val"] =  train_logs.loc[:, "val_loss"].to_list()
-        trainer.dice_scores["train"] = train_logs.loc[:, "train_dice"].to_list()
-        trainer.dice_scores["val"] = train_logs.loc[:, "val_dice"].to_list()
-        trainer.jaccard_scores["train"] = train_logs.loc[:, "train_jaccard"].to_list()
-        trainer.jaccard_scores["val"] = train_logs.loc[:, "val_jaccard"].to_list()
+#         # if need - load the logs.      
+#         train_logs = pd.read_csv(config.train_logs_path)
+#         trainer.losses["train"] =  train_logs.loc[:, "train_loss"].to_list()
+#         trainer.losses["val"] =  train_logs.loc[:, "val_loss"].to_list()
+#         trainer.dice_scores["train"] = train_logs.loc[:, "train_dice"].to_list()
+#         trainer.dice_scores["val"] = train_logs.loc[:, "val_dice"].to_list()
+#         trainer.jaccard_scores["train"] = train_logs.loc[:, "train_jaccard"].to_list()
+#         trainer.jaccard_scores["val"] = train_logs.loc[:, "val_jaccard"].to_list()
 
-#     torch.cuda.empty_cache()
+    torch.cuda.empty_cache()
     
-#     trainer.run()
+    trainer.run()
 
 #     trainer.display_plot()
 
+    # validation is done here
     val_dataloader = get_dataloader(BratsDataset, 'train_data.csv', phase='valid', fold=0)
     len(dataloader)
 
@@ -420,6 +419,7 @@ def main():
                                           'ET dice', 'ET jaccard']]
     val_metics_df.sample(5)
 
+    # save the bar chart with results
     colors = ['#35FCFF', '#FF355A', '#96C503', '#C5035B', '#28B463', '#35FFAF']
     palette = sns.color_palette(colors, 6)
 

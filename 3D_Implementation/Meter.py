@@ -53,6 +53,10 @@ from albumentations.pytorch import ToTensor, ToTensorV2
 import warnings
 warnings.simplefilter("ignore")
 
+"""
+These metrics and loss functions have been taken directly from: https://www.kaggle.com/code/polomarco/brats20-3dunet-3dautoencoder?scriptVersionId=47043797&cellId=19 by Marco Polo
+"""
+
 def dice_coef_metric(probabilities: torch.Tensor,
                      truth: torch.Tensor,
                      treshold: float = 0.5,
