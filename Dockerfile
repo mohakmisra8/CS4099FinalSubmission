@@ -21,10 +21,12 @@ RUN pip3 install --user --upgrade --disable-pip-version-check pip
 RUN pip3 install --user --no-cache-dir --disable-pip-version-check --root-user-action=ignore Flask requests
 RUN pip install albumentations==0.4.6
 
-
 # Install additional Python packages
 RUN pip3 install --user --no-cache-dir --disable-pip-version-check \
-    SimpleITK tqdm matplotlib nibabel albumentations pydicom nibabel torch torchvision opencv-python scikit-image nilearn
+    SimpleITK tqdm matplotlib nibabel albumentations pydicom nibabel torch torchvision opencv-python scikit-image nilearn && \
+    pip install git+https://github.com/shijianjian/EfficientNet-PyTorch-3D && \
+    pip install einops && \
+    pip install segmentation-models-3D
 
 # Create a directory inside the container to store the dataset
 RUN mkdir -p /dataset
@@ -40,4 +42,4 @@ RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 # RUN chmod +x /usr/local/bin/split_data.sh
 
 # Start your application (Jupyter Lab, in this case)
-CMD [ "jupyter", "lab", "-p", "8888"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--port=8888", "--NotebookApp.token=''", "--NotebookApp.password=''"]

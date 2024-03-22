@@ -9,10 +9,7 @@ from tifffile import imsave
 import tensorflow as tf
 from tensorflow.keras.losses import Loss
 import segmentation_models_3D as sm
-# segmentation_models = '/exp1/experiment1Softmax/segmentation_models/'
 
-
-# sys.path.append(segmentation_models)
 import tensorflow.keras.backend as K
 
 from sklearn.preprocessing import MinMaxScaler
@@ -21,8 +18,12 @@ scaler = MinMaxScaler()
 from tensorflow.keras.backend import clear_session
 clear_session()
 
+"""
+The pipeline and code is adapted and based on https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net/notebook#Let's-understand-the-3D-U-net-architecture
+"""
+
 TRAIN_DATASET_PATH = '/data'
-#VALIDATION_DATASET_PATH = 'BraTS2020_ValidationData/MICCAI_BraTS2020_ValidationData'
+
 
 sample_filename = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_FLAIR.nii'
 sample_filename2 = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T1.nii'
@@ -33,17 +34,18 @@ sample_filename_mask = '/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmenta
 test_image_flair=nib.load(sample_filename).get_fdata()
 print(test_image_flair.max())
 #Scalers are applied to 1D so let us reshape and then reshape back to original shape. 
-# test_image_flair=scaler.fit_transform(test_image_flair.reshape(-1, test_image_flair.shape[-1])).reshape(test_image_flair.shape)
+test_image_flair=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_FLAIR.nii').get_fdata()
+test_image_flair=scaler.fit_transform(test_image_flair.reshape(-1, test_image_flair.shape[-1])).reshape(test_image_flair.shape)
 
 
 test_image_t1=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T1.nii').get_fdata()
-# test_image_t1=scaler.fit_transform(test_image_t1.reshape(-1, test_image_t1.shape[-1])).reshape(test_image_t1.shape)
+test_image_t1=scaler.fit_transform(test_image_t1.reshape(-1, test_image_t1.shape[-1])).reshape(test_image_t1.shape)
 
 test_image_t1ce=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T1c.nii').get_fdata()
-# test_image_t1ce=scaler.fit_transform(test_image_t1ce.reshape(-1, test_image_t1ce.shape[-1])).reshape(test_image_t1ce.shape)
+test_image_t1ce=scaler.fit_transform(test_image_t1ce.reshape(-1, test_image_t1ce.shape[-1])).reshape(test_image_t1ce.shape)
 
 test_image_t2=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_T2.nii').get_fdata()
-# test_image_t2=scaler.fit_transform(test_image_t2.reshape(-1, test_image_t2.shape[-1])).reshape(test_image_t2.shape)
+test_image_t2=scaler.fit_transform(test_image_t2.reshape(-1, test_image_t2.shape[-1])).reshape(test_image_t2.shape)
 
 test_mask=nib.load('/data/UCSF-PDGM-0014_nifti/UCSF-PDGM-0014_tumor_segmentation.nii').get_fdata()
 test_mask=test_mask.astype(np.uint8)
@@ -52,13 +54,11 @@ print(np.unique(test_mask))  #0, 1, 2, 4 (Need to reencode to 0, 1, 2, 3)
 test_mask[test_mask==4] = 3  #Reassign mask values 4 to 3
 print(np.unique(test_mask)) 
 
-import os
-import random
 
-# Directory containing your data
+# Directory containing data
 data_directory = '/data'
 
-# Exclude the specific path you want to skip
+# This path is empty
 excluded_path = '/data/UCSF-PDGM-0541_nifti'
 excluded_dirname = os.path.basename(excluded_path)
 if excluded_path in data_directory:
@@ -67,30 +67,25 @@ if excluded_path in data_directory:
 # List all files in the directory
 all_files = os.listdir(data_directory)
 
-# Exclude the specific path you want to skip
-# excluded_path = '/data/UCSF-PDGM-0541_nifti'
-# if excluded_path in all_files:
-#     all_files.remove(excluded_path)
-
 # Shuffle the list of files
 random.shuffle(all_files)
 
-# Define the number of files for training and validation
+# the number of files for training and validation
 num_train_files = 400
 
 # Split the shuffled list into training and validation sets
 train_files = all_files[:num_train_files]
 val_files = all_files[num_train_files:]
 
-# Define the paths for training and validation datasets
+# Define the paths for training and validation datasets, inspiration taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net
 TRAIN_DATASET_PATH = [os.path.join(data_directory, file) for file in train_files]
 VAL_DATASET_PATH = [os.path.join(data_directory, file) for file in val_files]
 
 # Print the first few file paths for verification
 print("Training Dataset Paths:")
-print(TRAIN_DATASET_PATH[:5])  # Print the first 5 paths
+print(TRAIN_DATASET_PATH[:5])  
 print("\nValidation Dataset Paths:")
-print(VAL_DATASET_PATH[:5])    # Print the first 5 paths
+print(VAL_DATASET_PATH[:5])   
 
 train_t2_list = []
 train_t1ce_list = []
@@ -121,7 +116,7 @@ for directory in TRAIN_DATASET_PATH:
 import os
 import glob
 
-# Initialize lists for different types of files
+# Initialise lists for different types of files
 val_t2_list = []
 val_t1ce_list = []
 val_flair_list = []
@@ -161,27 +156,125 @@ if index_to_check < len(val_t2_list):
     print(f"Mask: {val_mask_list[index_to_check]}")
 else:
     print("Index is out of range.")
+    
+"""
+Seperate images and masks
+"""
+images_dir = '/exp1/ClassImbalanceExperiments/images'
+masks_dir = '/exp1/ClassImbalanceExperiments/masks'
 
-images_dir = '/exp1/experiment1Softmax/images'
-masks_dir = '/exp1/experiment1Softmax/masks'
 
-# Ensure the directories exist
 os.makedirs(images_dir, exist_ok=True)
 os.makedirs(masks_dir, exist_ok=True)
 
-images_dir = '/exp1/experiment1Softmax/val/images'
-masks_dir = '/exp1/experiment1Softmax/val/masks'
+images_dir = '/exp1/eClassImbalanceExperiments/val/images'
+masks_dir = '/exp1/ClassImbalanceExperiments/val/masks'
 
-# Ensure the directories exist
+
 os.makedirs(images_dir, exist_ok=True)
 os.makedirs(masks_dir, exist_ok=True)
 
 models = '/exp1/savedModels'
 # masks_dir = '/exp1/new_model/experiment1Softmax/val/masks'
 
-# Ensure the directories exist
 os.makedirs(models, exist_ok=True)
-# os.makedirs(masks_dir, exist_ok=True)
+
+"""
+Preprocessing and augmentation techniques taken from: Merge channels, crop, patchify, save. Adapted from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=30
+"""
+
+for img in range(len(train_t2_list)):  
+    print("Now preparing image and masks number: ", img)
+
+    # Load and normalize T2 images
+    temp_image_t2 = nib.load(train_t2_list[img]).get_fdata()
+    temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+
+
+    # Load and normalize T1ce images
+
+    temp_image_t1ce = nib.load(train_t1ce_list[img]).get_fdata()
+    temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+
+    # Load and normalize FLAIR images
+
+    temp_image_flair = nib.load(train_flair_list[img]).get_fdata()
+    temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+
+    # Load masks and adjust values
+
+    temp_mask = nib.load(train_mask_list[img]).get_fdata()
+    temp_mask = temp_mask.astype(np.uint8)
+    
+    temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
+    unique_values = np.unique(temp_mask)
+    print(unique_values)
+
+    # Combine images along a new dimension
+    temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
+    
+    #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
+    #cropping x, y, and z
+    temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
+    temp_mask = temp_mask[56:184, 56:184, 13:141]
+    
+    val, counts = np.unique(temp_mask, return_counts=True)
+    
+    if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
+        print("Mask saved")
+        temp_mask = to_categorical(temp_mask, num_classes=4)
+        np.save('/exp1/ClassImbalanceExperiments/images/image_'+str(img)+'.npy', temp_combined_images)
+        np.save('/exp1/ClassImbalanceExperiments/masks/mask_'+str(img)+'.npy', temp_mask)
+    else:
+        print("Not necessary")
+        
+for img in range(len(val_t2_list)): 
+    print("Now preparing image and masks number: ", img)
+
+    # Load and normalize T2 images
+
+    temp_image_t2 = nib.load(val_t2_list[img]).get_fdata()
+    temp_image_t2 = scaler.fit_transform(temp_image_t2.reshape(-1, temp_image_t2.shape[-1])).reshape(temp_image_t2.shape)
+    unique_values = np.unique(temp_image_t2)
+
+    # Load and normalize T1ce images
+    temp_image_t1ce = nib.load(val_t1ce_list[img]).get_fdata()
+    temp_image_t1ce = scaler.fit_transform(temp_image_t1ce.reshape(-1, temp_image_t1ce.shape[-1])).reshape(temp_image_t1ce.shape)
+
+    # Load and normalize FLAIR images
+    temp_image_flair = nib.load(val_flair_list[img]).get_fdata()
+    temp_image_flair = scaler.fit_transform(temp_image_flair.reshape(-1, temp_image_flair.shape[-1])).reshape(temp_image_flair.shape)
+
+    # Load masks and adjust values
+    temp_mask = nib.load(val_mask_list[img]).get_fdata()
+    temp_mask = temp_mask.astype(np.uint8)
+    
+    temp_mask[temp_mask == 4] = 3  # Reassign mask values 4 to 3
+    print("here")
+    unique_values = np.unique(temp_mask)
+    print(unique_values)
+
+    # Combine images along a new dimension
+    temp_combined_images = np.stack([temp_image_flair, temp_image_t1ce, temp_image_t2], axis=3)
+    
+    #Crop to a size to be divisible by 64 so we can later extract 64x64x64 patches. 
+    #cropping x, y, and z
+    temp_combined_images=temp_combined_images[56:184, 56:184, 13:141]
+    temp_mask = temp_mask[56:184, 56:184, 13:141]
+    
+    val, counts = np.unique(temp_mask, return_counts=True)
+    
+    if (1 - (counts[0]/counts.sum())) > 0.0001:  # At least 1% useful volume with labels that are not 0
+        print("Save Me")
+        temp_mask = to_categorical(temp_mask, num_classes=4)
+        np.save('/exp1/ClassImbalanceExperiments/val/images/image_'+str(img)+'.npy', temp_combined_images)
+        np.save('/exp1/ClassImbalanceExperiments/val/masks/mask_'+str(img)+'.npy', temp_mask)
+    else:
+        print("Not necessary")
+
+"""
+The load_img and imageLoader methods are taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=37
+"""
 
 def load_img(img_dir, img_list):
     images = []
@@ -207,8 +300,11 @@ def imageLoader(img_dir, img_list, mask_dir, mask_list, batch_size):
 from matplotlib import pyplot as plt
 import random
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+"""
+Sort all the lists where the dirctories so that the corresponding images and masks match
+"""
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 train_img_list = sorted(os.listdir(train_img_dir))
 train_mask_list = sorted(os.listdir(train_mask_dir))
 
@@ -219,16 +315,13 @@ train_img_datagen = imageLoader(train_img_dir, train_img_list, train_mask_dir, t
 
 import os
 import numpy as np
-#import imageloader
-#from custom_datagen import imageLoader
-#import tensorflow as tf
 import keras
 from matplotlib import pyplot as plt
 import glob
 import random
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 
 img_list = sorted(os.listdir(train_img_dir))
 msk_list = sorted(os.listdir(train_mask_dir))
@@ -237,7 +330,7 @@ import pandas as pd
 columns = ['0', '1', '2', '3']
 df = pd.DataFrame(columns=columns)
 
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 train_mask_list = sorted(glob.glob(os.path.join(train_mask_dir, '*.npy')))
 
 for img_path in train_mask_list:
@@ -261,7 +354,7 @@ columns = ['0', '1', '2', '3']
 df = pd.DataFrame(columns=columns)
 
 # Define the directory containing your mask files
-val_mask_dir = '/exp1/experiment1Softmax/val/masks/'
+val_mask_dir = '/exp1/ClassImbalanceExperiments/val/masks/'
 # Sort the list of mask file paths
 val_mask_list = sorted(glob.glob(os.path.join(val_mask_dir, '*.npy')))
 
@@ -299,11 +392,11 @@ wt3 = round((total_labels/(n_classes*label_3)), 2)
 
 #Define the image generators for training and validation
 
-train_img_dir = "/exp1/experiment1Softmax/images/"
-train_mask_dir = "/exp1/experiment1Softmax/masks/"
+train_img_dir = "/exp1/ClassImbalanceExperiments/images/"
+train_mask_dir = "/exp1/ClassImbalanceExperiments/masks/"
 
-val_img_dir = "/exp1/experiment1Softmax/val/images/"
-val_mask_dir = "/exp1/experiment1Softmax/val/masks/"
+val_img_dir = "/exp1/ClassImbalanceExperiments/val/images/"
+val_mask_dir = "/exp1/ClassImbalanceExperiments/val/maskss/"
 
 # Retrieve and sort the list of training images and masks
 train_img_list = sorted(os.listdir(train_img_dir))
@@ -313,9 +406,8 @@ train_mask_list = sorted(os.listdir(train_mask_dir))
 val_img_list = sorted(os.listdir(val_img_dir))
 val_mask_list = sorted(os.listdir(val_mask_dir))
 
-# Define a function to extract the sort key (e.g., ID) from the file name
+# Method to extrack key from a file name
 def extract_sort_key(filename):
-    # This is an example; adjust the slicing as per your file naming convention
     return filename.split('_')[0]
 
 # Sort the training image and mask lists
@@ -328,6 +420,9 @@ val_mask_list = sorted(val_mask_list, key=extract_sort_key)
 
 batch_size = 2
 
+"""
+Inspiration taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=39
+"""
 train_img_datagen = imageLoader(train_img_dir, train_img_list, 
                                 train_mask_dir, train_mask_list, batch_size)
 
@@ -336,7 +431,12 @@ train_img_datagen = imageLoader(train_img_dir, train_img_list,
 val_img_datagen = imageLoader(val_img_dir, val_img_list, 
                                 val_mask_dir, val_mask_list, batch_size)
 
-def dice_coef(y_true, y_pred, smooth=1e-6):
+"""
+These metrics have been taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=18 by Rastislav
+"""
+################################### DICE LOSSES USED##############################################################
+# dice loss as defined above for 4 classes
+def dice_coef(y_true, y_pred, smooth=1.0):
     class_num = 4
     for i in range(class_num):
         y_true_f = K.flatten(y_true[:,:,:,i])
@@ -357,37 +457,104 @@ def dice_coef(y_true, y_pred, smooth=1e-6):
 # define per class evaluation of dice coef
 # inspired by https://github.com/keras-team/keras/issues/9395
 def dice_coef_necrotic(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:,:,:,:,1] * y_pred[:,:,:,:,1]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,1])) + K.sum(K.square(y_pred[:,:,:,:,1])) + epsilon)
+    intersection = K.sum(K.abs(y_true[:,:,:,1] * y_pred[:,:,:,1]))
+    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,1])) + K.sum(K.square(y_pred[:,:,:,1])) + epsilon)
 
 def dice_coef_edema(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:,:,:,:,2] * y_pred[:,:,:,:,2]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,2])) + K.sum(K.square(y_pred[:,:,:,:,2])) + epsilon)
+    intersection = K.sum(K.abs(y_true[:,:,:,2] * y_pred[:,:,:,2]))
+    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,2])) + K.sum(K.square(y_pred[:,:,:,2])) + epsilon)
 
 def dice_coef_enhancing(y_true, y_pred, epsilon=1e-6):
-    intersection = K.sum(K.abs(y_true[:,:,:,:,3] * y_pred[:,:,:,:,3]))
-    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,3])) + K.sum(K.square(y_pred[:,:,:,:,3])) + epsilon)
-
+    intersection = K.sum(K.abs(y_true[:,:,:,3] * y_pred[:,:,:,3]))
+    return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,3])) + K.sum(K.square(y_pred[:,:,:,3])) + epsilon)
 
 
 
 # Computing Precision 
 def precision(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-    precision = true_positives / (predicted_positives + K.epsilon())
-    return precision
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
 
+    
+# Computing Sensitivity      
 def sensitivity(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
     return true_positives / (possible_positives + K.epsilon())
 
+
+# Computing Specificity
 def specificity(y_true, y_pred):
-    true_negatives = K.sum(K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
-    possible_negatives = K.sum(K.round(K.clip(1 - y_true, 0, 1)))
+    true_negatives = K.sum(K.round(K.clip((1-y_true) * (1-y_pred), 0, 1)))
+    possible_negatives = K.sum(K.round(K.clip(1-y_true, 0, 1)))
     return true_negatives / (possible_negatives + K.epsilon())
 
+"""
+These methods are a potential reimplementation of the same coefficients but for 3D
+"""
+
+################################### 3D DICE LOSSES REIMPLEMENTATION##############################################################
+
+# dice loss as defined above for 4 classes
+# def dice_coef(y_true, y_pred, smooth=1e-6):
+#     class_num = 4
+#     for i in range(class_num):
+#         y_true_f = K.flatten(y_true[:,:,:,i])
+#         y_pred_f = K.flatten(y_pred[:,:,:,i])
+#         intersection = K.sum(y_true_f * y_pred_f)
+#         loss = ((2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth))
+#    #     K.print_tensor(loss, message='loss value for class {} : '.format(SEGMENT_CLASSES[i]))
+#         if i == 0:
+#             total_loss = loss
+#         else:
+#             total_loss = total_loss + loss
+#     total_loss = total_loss / class_num
+# #    K.print_tensor(total_loss, message=' total dice coef: ')
+#     return total_loss
+
+
+ 
+# # define per class evaluation of dice coef
+# # inspired by https://github.com/keras-team/keras/issues/9395
+# def dice_coef_necrotic(y_true, y_pred, epsilon=1e-6):
+#     intersection = K.sum(K.abs(y_true[:,:,:,:,1] * y_pred[:,:,:,:,1]))
+#     return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,1])) + K.sum(K.square(y_pred[:,:,:,:,1])) + epsilon)
+
+# def dice_coef_edema(y_true, y_pred, epsilon=1e-6):
+#     intersection = K.sum(K.abs(y_true[:,:,:,:,2] * y_pred[:,:,:,:,2]))
+#     return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,2])) + K.sum(K.square(y_pred[:,:,:,:,2])) + epsilon)
+
+# def dice_coef_enhancing(y_true, y_pred, epsilon=1e-6):
+#     intersection = K.sum(K.abs(y_true[:,:,:,:,3] * y_pred[:,:,:,:,3]))
+#     return (2. * intersection) / (K.sum(K.square(y_true[:,:,:,:,3])) + K.sum(K.square(y_pred[:,:,:,:,3])) + epsilon)
+
+
+
+
+# # Computing Precision 
+# def precision(y_true, y_pred):
+#     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+#     predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+#     precision = true_positives / (predicted_positives + K.epsilon())
+#     return precision
+
+# def sensitivity(y_true, y_pred):
+#     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+#     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+#     return true_positives / (possible_positives + K.epsilon())
+
+# def specificity(y_true, y_pred):
+#     true_negatives = K.sum(K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
+#     possible_negatives = K.sum(K.round(K.clip(1 - y_true, 0, 1)))
+#     return true_negatives / (possible_negatives + K.epsilon())
+
+###################################################################################################################################
+
+"""
+Model architecture taken from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=53
+"""
 
 from keras.models import Model
 from keras.layers import Input, Conv3D, MaxPooling3D, concatenate, Conv3DTranspose, BatchNormalization, Dropout, Lambda
@@ -396,15 +563,13 @@ from tensorflow.keras.layers import UpSampling3D, BatchNormalization
 
 from keras.metrics import MeanIoU
 
-kernel_initializer =  'he_uniform' #Try others if you want
-
+kernel_initializer =  'he_uniform' 
 
 
 ################################################################
 def simple_unet_model(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classes):
 #Build the model
     inputs = Input((IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS))
-    #s = Lambda(lambda x: x / 255)(inputs)   #No need for this if we normalize our inputs beforehand
     s = inputs
 
     #Contraction path
@@ -465,75 +630,9 @@ def simple_unet_model(IMG_HEIGHT, IMG_WIDTH, IMG_DEPTH, IMG_CHANNELS, num_classe
     
     return model
 
-
-wt0, wt1, wt2, wt3 = 0.25,0.25,0.25,0.25
-import segmentation_models_3D as sm
-from tensorflow.keras.backend import epsilon
-# dice_loss = sm.losses.DiceLoss(class_weights=np.array([wt0, wt1, wt2, wt3])) 
-# focal_loss = sm.losses.CategoricalFocalLoss()
-# total_loss = dice_loss + (1 * focal_loss)
-
-def recall_loss(y_true, y_pred):
-    y_true = tf.cast(y_true, dtype=tf.float32)
-    y_pred = tf.cast(y_pred, dtype=tf.float32)
-    
-    true_positives = tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
-    possible_positives = tf.reduce_sum(y_true, axis=(1, 2, 3))
-    
-    recall = true_positives / (possible_positives + tf.keras.backend.epsilon())
-    recall_loss_value = 1 - recall
-    
-    return tf.reduce_mean(recall_loss_value)
-
-def enhanced_recall_loss(y_true, y_pred):
-    gt_enhanced = y_true[:,:,:,:,3]
-    pred_enhanced = y_pred[:,:,:,:,3]
-    
-    return recall_loss(gt_enhanced, pred_enhanced)
-
-def complete_recall_loss(y_true, y_pred):
-    gt_combined = tf.reduce_sum(y_true[:,:,:,:,1:4], axis=-1)
-    pred_combined = tf.reduce_sum(y_pred[:,:,:,:,1:4], axis=-1)
-    
-    return recall_loss(gt_combined, pred_combined)
-
-def core_recall_loss(y_true, y_pred):
-    # Creating indices for core (necrotic and enhancing)
-    indices_core = [1, 3]
-    
-    # Gather the core classes based on the indices
-    gt_core = tf.reduce_sum(tf.gather(y_true, indices_core, axis=-1), axis=-1)
-    pred_core = tf.reduce_sum(tf.gather(y_pred, indices_core, axis=-1), axis=-1)
-    
-    return recall_loss(gt_core, pred_core)
-
-
-# Dummy values for the sake of example
-SEGMENT_CLASSES = {
-    0: 'NOT tumor',
-    1: 'NECROTIC/CORE',  # or NON-ENHANCING tumor CORE
-    2: 'EDEMA',
-    3: 'ENHANCING'  # original 4 -> converted into 3 later
-}
-
-# Define placeholder tensors
-batch_size = 8
-depth = 128
-height = 128
-width = 128
-num_classes = 4
-
-# # Initialize with random numbers for demonstration purposes
-# ground_truth = tf.random.uniform((batch_size, depth, height, width, num_classes))
-# predictions = tf.random.uniform((batch_size, depth, height, width, num_classes))
-
-# Calculate the recall loss for each region
-# recall_loss_value = recall_loss(ground_truth, predictions)
-# enhanced_recall_loss_value = enhanced_recall_loss(ground_truth, predictions)
-# complete_recall_loss_value = complete_recall_loss(ground_truth, predictions)
-# core_recall_loss_value = core_recall_loss(ground_truth, predictions)
-
-# recall_loss_value, enhanced_recall_loss_value, complete_recall_loss_value, core_recall_loss_value
+"""
+Custom Hybrid Loss Loss methods implemented for each class based on the work done by Huang et al. (2021)
+"""
 
 def dice_loss(y_true, y_pred, smooth=1e-6):
     y_true_f = K.flatten(y_true)
@@ -542,14 +641,14 @@ def dice_loss(y_true, y_pred, smooth=1e-6):
     intersection = K.sum(y_true_f * y_pred_f)
     return 1 - (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
-def dice_coefficient(y_true, y_pred, smooth=1e-6):
-    y_true_f = tf.reshape(y_true, [-1])
-    y_pred_f = tf.reshape(y_pred, [-1])
+# def dice_coefficient(y_true, y_pred, smooth=1e-6):
+#     y_true_f = tf.reshape(y_true, [-1])
+#     y_pred_f = tf.reshape(y_pred, [-1])
     
-    intersection = tf.reduce_sum(y_true_f * y_pred_f)
-    union = tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f)
+#     intersection = tf.reduce_sum(y_true_f * y_pred_f)
+#     union = tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f)
     
-    return (2. * intersection + smooth) / (union + smooth)
+#     return (2. * intersection + smooth) / (union + smooth)
 
 def dice_loss_specific_class(y_true, y_pred, class_index):
     return dice_loss(y_true[..., class_index], y_pred[..., class_index])
@@ -591,19 +690,134 @@ def hybrid_loss_2(alpha, beta, gamma, delta, y_true, y_pred):
     
     return alpha * dice_combined_loss + beta * rl_com_loss + gamma * rl_core_loss + delta * rl_enh_loss
 
-alpha = 1
-beta = 0.1
-gamma = 1.3
+
+
+import segmentation_models_3D as sm
+from tensorflow.keras.backend import epsilon
+
+def recall_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, dtype=tf.float32)
+    y_pred = tf.cast(y_pred, dtype=tf.float32)
+    
+    true_positives = tf.reduce_sum(y_true * y_pred, axis=(1, 2, 3))
+    possible_positives = tf.reduce_sum(y_true, axis=(1, 2, 3))
+    
+    recall = true_positives / (possible_positives + tf.keras.backend.epsilon())
+    recall_loss_value = 1 - recall
+    
+    return tf.reduce_mean(recall_loss_value)
+
+def enhanced_recall_loss(y_true, y_pred):
+    gt_enhanced = y_true[:,:,:,:,3]
+    pred_enhanced = y_pred[:,:,:,:,3]
+    
+    return recall_loss(gt_enhanced, pred_enhanced)
+
+def complete_recall_loss(y_true, y_pred):
+    gt_combined = tf.reduce_sum(y_true[:,:,:,:,1:4], axis=-1)
+    pred_combined = tf.reduce_sum(y_pred[:,:,:,:,1:4], axis=-1)
+    
+    return recall_loss(gt_combined, pred_combined)
+
+def core_recall_loss(y_true, y_pred):
+    # Creating indices for core (necrotic and enhancing)
+    indices_core = [1, 3]
+    
+    # Gather the core classes based on the indices
+    gt_core = tf.reduce_sum(tf.gather(y_true, indices_core, axis=-1), axis=-1)
+    pred_core = tf.reduce_sum(tf.gather(y_pred, indices_core, axis=-1), axis=-1)
+    
+    return recall_loss(gt_core, pred_core)
+
+
+
+SEGMENT_CLASSES = {
+    0: 'NOT tumor',
+    1: 'NECROTIC/CORE', 
+    2: 'EDEMA',
+    3: 'ENHANCING'  
+}
+
+
+batch_size = 8
+depth = 128
+height = 128
+width = 128
+num_classes = 4
+
+
+
+def dice_loss(y_true, y_pred, smooth=1e-6):
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    
+    intersection = K.sum(y_true_f * y_pred_f)
+    return 1 - (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+def dice_coefficient(y_true, y_pred, smooth=1e-6):
+    y_true_f = tf.reshape(y_true, [-1])
+    y_pred_f = tf.reshape(y_pred, [-1])
+    
+    intersection = tf.reduce_sum(y_true_f * y_pred_f)
+    union = tf.reduce_sum(y_true_f) + tf.reduce_sum(y_pred_f)
+    
+    return (2. * intersection + smooth) / (union + smooth)
+
+def dice_loss_specific_class(y_true, y_pred, class_index):
+    return dice_loss(y_true[..., class_index], y_pred[..., class_index])
+
+def combined_dice_loss(y_true, y_pred):
+    num_classes = tf.shape(y_true)[-1]
+    loss = 0.0
+    for class_index in range(num_classes):  # loop through each class
+        loss += dice_loss(y_true[..., class_index], y_pred[..., class_index])
+    return loss / tf.cast(num_classes, tf.float32)
+
+def hybrid_loss_1(alpha, beta, gamma, delta, y_true, y_pred):
+    # Cross-entropy loss
+    ce_loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+    
+    # Recall loss for complete region
+    rl_com_loss = complete_recall_loss(y_true, y_pred)
+    
+    # Recall loss for core region
+    rl_core_loss = core_recall_loss(y_true, y_pred)
+    
+    # Recall loss for enhanced region
+    rl_enh_loss = enhanced_recall_loss(y_true, y_pred)
+    
+    return alpha * ce_loss + beta * rl_com_loss + gamma * rl_core_loss + delta * rl_enh_loss
+
+def hybrid_loss_2(alpha, beta, gamma, delta, y_true, y_pred):
+    # Combined Dice loss
+    dice_combined_loss = combined_dice_loss(y_true, y_pred)
+    
+    # Recall loss for complete region
+    rl_com_loss = complete_recall_loss(y_true, y_pred)
+    
+    # Recall loss for core region
+    rl_core_loss = core_recall_loss(y_true, y_pred)
+    
+    # Recall loss for enhanced region
+    rl_enh_loss = enhanced_recall_loss(y_true, y_pred)
+    
+    return alpha * dice_combined_loss + beta * rl_com_loss + gamma * rl_core_loss + delta * rl_enh_loss
+
+alpha = 20
+beta = 0.5
+gamma = 1
 delta = 0.5
 
-
+ """
+ This model compilation has taken inspiration from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=34 and https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=61
+ """
+    
 model = simple_unet_model(128, 128, 128, 3, 4)
 model.compile(loss= lambda y_true, y_pred: hybrid_loss_2(alpha, beta, gamma, delta, y_true, y_pred), optimizer=keras.optimizers.Adam(learning_rate=0.001), metrics = ['accuracy',sm.metrics.IOUScore(threshold=0.5), dice_coef, precision, sensitivity, specificity, dice_coef_necrotic, dice_coef_edema ,dice_coef_enhancing] )
 print(model.input_shape)
 print(model.output_shape)
 
 import keras.backend as K
-from keras.callbacks import CSVLogger
 from keras.callbacks import CSVLogger, EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 
 steps_per_epoch = len(train_img_list)//batch_size
@@ -611,14 +825,15 @@ val_steps_per_epoch = len(val_img_list)//batch_size
 
 csv_logger = CSVLogger('hybrid_loss_2.log', separator=',', append=False)
 
+"""
+This is inspired from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=61189746&cellId=30
+"""
 
 callbacks = [
-#     keras.callbacks.EarlyStopping(monitor='loss', min_delta=0,
-#                               patience=2, verbose=1, mode='auto'),
+
       keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2,
                               patience=2, min_lr=0.000001, verbose=1),
-#  keras.callbacks.ModelCheckpoint(filepath = 'model_.{epoch:02d}-{val_loss:.6f}.m5',
-#                             verbose=1, save_best_only=True, save_weights_only = True),
+
         csv_logger
     ]
 
@@ -633,62 +848,7 @@ history=model.fit(train_img_datagen,
 
 
 
-
 model.save("hybrid_loss_2.h5")
-
-############ load trained model ################
-model = keras.models.load_model('hybrid_loss_2.h5', 
-                                   custom_objects={ 'accuracy' : sm.metrics.IOUScore(threshold=0.5),
-                                                   "dice_coef": dice_coef,
-                                                   "precision": precision,
-                                                   "sensitivity":sensitivity,
-                                                   "specificity":specificity,
-                                                   "dice_coef_necrotic": dice_coef_necrotic,
-                                                   "dice_coef_edema": dice_coef_edema,
-                                                   "dice_coef_enhancing": dice_coef_enhancing
-                                                  }, compile=False)
-
-history = pd.read_csv('hybrid_loss_2.log', sep=',', engine='python')
-
-hist=history
-
-# hist['iou_score']
-
-############### ########## ####### #######
-
-# hist=history.history
-
-acc=hist['accuracy']
-val_acc=hist['val_accuracy']
-
-epoch=range(len(acc))
-
-loss=hist['loss']
-val_loss=hist['val_loss']
-
-train_dice=hist['dice_coef']
-val_dice=hist['val_dice_coef']
-
-f,ax=plt.subplots(1,4,figsize=(16,8))
-
-ax[0].plot(epoch,acc,'b',label='Training Accuracy')
-ax[0].plot(epoch,val_acc,'r',label='Validation Accuracy')
-ax[0].legend()
-
-ax[1].plot(epoch,loss,'b',label='Training Loss')
-ax[1].plot(epoch,val_loss,'r',label='Validation Loss')
-ax[1].legend()
-
-ax[2].plot(epoch,train_dice,'b',label='Training dice coef')
-ax[2].plot(epoch,val_dice,'r',label='Validation dice coef')
-ax[2].legend()
-
-ax[3].plot(epoch,hist['iou_score'],'b',label='Training mean IOU')
-ax[3].plot(epoch,hist['val_iou_score'],'r',label='Validation mean IOU')
-ax[3].legend()
-plt.savefig("hybrid_loss_2_training.png")
-# plt.imshow()
-plt.close()
 
 import numpy as np
 from keras.models import load_model
@@ -697,29 +857,12 @@ import segmentation_models_3D as sm
 steps_per_epoch = len(train_img_list)//batch_size
 val_steps_per_epoch = len(val_img_list)//batch_size
 
-steps_per_epoch = len(train_img_list)//batch_size
-val_steps_per_epoch = len(val_img_list)//batch_size
-
 def hybrid_loss_2_wrapper(y_true, y_pred):
     return hybrid_loss_2(alpha, beta, gamma, delta, y_true, y_pred)
 
-
 model = load_model('hybrid_loss_2.h5', compile=False)
 
-# model.compile(loss=hybrid_loss_1_wrapper, 
-#               optimizer=keras.optimizers.Adam(learning_rate=0.001),
-#               custom_objects={ "accuracy" : sm.metrics.IOUScore(threshold=0.5),
-#                                                    "dice_coef": dice_coef,
-#                                                    "precision": precision,
-#                                                    "sensitivity":sensitivity,
-#                                                    "specificity":specificity,
-#                                                    "dice_coef_necrotic": dice_coef_necrotic,
-#                                                    "dice_coef_edema": dice_coef_edema,
-#                                                    "dice_coef_enhancing": dice_coef_enhancing,
-#                                                    'hybrid_loss_1_wrapper': hybrid_loss_1_wrapper
-#                                                   }
-#              )
-
+# Compile the model with the required optimizer, loss, and metrics
 model.compile(
     optimizer='adam',
     loss=hybrid_loss_2_wrapper, 
@@ -735,14 +878,18 @@ model.compile(
     ]
 )
 
+"""
+Model trained for few epochs due to the model taking 44 minutes per epoch
+"""
+history2 = model.fit(
+    train_img_datagen,
+    steps_per_epoch=steps_per_epoch,
+    epochs=1,
+    verbose=1,
+    validation_data=val_img_datagen,
+    validation_steps=val_steps_per_epoch,
+)
 
-history2=model.fit(train_img_datagen,
-          steps_per_epoch=steps_per_epoch,
-          epochs=1,
-          verbose=1,
-          validation_data=val_img_datagen,
-          validation_steps=val_steps_per_epoch,
-          )
 
 my_model = load_model('hybrid_loss_2.h5', compile=False)
 
@@ -781,7 +928,9 @@ print("Dice Coefficient Necrotic =", dice_coef_necrotic_value.numpy())
 print("Dice Coefficient Edema =", dice_coef_edema_value.numpy())
 print("Dice Coefficient Enhancing =", dice_coef_enhancing_value.numpy())
 
-# img_num = 82
+"""
+Testing, adapted from: https://www.kaggle.com/code/limonhalder/3d-mri-brain-tumor-segmentation-u-net?scriptVersionId=116480297&cellId=68
+"""
 
 test_img = np.load("/exp1/experiment1Softmax/val/images/image_66.npy")
 

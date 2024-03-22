@@ -1,3 +1,7 @@
+"""
+This transformer Implementation was inspired by: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type#Functions-to-load-images
+The models have been discussed in depth in the report and automate the learning process.
+"""
 import os
 import sys 
 import csv
@@ -30,23 +34,15 @@ import tqdm
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 
-# pytorch3dpath = "EfficientNet-PyTorch-3D"
-# pytorch3dpath = "3DAutoencoder/Transformer/EfficientNet-PyTorch-3D"
-# einops = "/home/mm510/Dissertation/3DAutoencoder/Transformer/einops"
-# einops = "3DAutoencoder/Transformer/einops"
-
 # data_directory = "/data/mm510/UCSF-PDGM-v3/"
 data_directory = "/data/"
 csv_directory = "UCSF-PDGM-metadata_v2.csv"
-# csv_directory = "UCSF-PDGM-metadata_v2.csv"
 
-# sys.path.append(pytorch3dpath)
-# sys.path.append(einops)
 
 from efficientnet_pytorch_3d import EfficientNet3D
 
 mri_types = ['_FLAIR','_T1','_T1c','_T2', 'all']
-# mri_types = ['_FLAIR']
+
 SIZE = 256
 NUM_IMAGES = 64
 
@@ -54,7 +50,7 @@ def filter_non_existent_paths(csv_file, output_file):
     # Read the CSV file into a DataFrame
     df = pd.read_csv(csv_file)
 
-    # List to hold indices of rows to be deleted
+    # hold indices of rows to be deleted
     rows_to_delete = []
 
     for index, row in df.iterrows():
@@ -62,22 +58,18 @@ def filter_non_existent_paths(csv_file, output_file):
         id_num = row['ID'].split('-')[-1].zfill(4)
 
         # Construct the path
-#         path = f"/home/mm510/data/UCSF-PDGM-v3/UCSF-PDGM-{id_num}_nifti"
         path = f"/data/UCSF-PDGM-{id_num}_nifti"
 
-        # Check if path exists
+
         if not os.path.exists(path):
-            # Mark the row index for deletion
             rows_to_delete.append(index)
 
     # Drop the rows where the path does not exist
     df = df.drop(rows_to_delete)
 
-    # Save the updated DataFrame to a new CSV file
+
     df.to_csv(output_file, index=False)
-    
-# csv_file = '/home/mm510/Dissertation/3DAutoencoder/Transformer/modified_train_data.csv'  
-# output_file = '/home/mm510/Dissertation/3DAutoencoder/Transformer/filtered_output_with_no_non_existant_paths.csv'  
+     
 csv_file = 'modified_train_data.csv'  
 output_file = 'filtered_output_with_no_non_existant_paths.csv' 
 filter_non_existent_paths(csv_file, output_file)
@@ -93,7 +85,10 @@ def extractIDwithoutNifTi(path):
     id_without_nifti = base_name.replace('_nifti', '')
     return id_without_nifti
 
-# img_size=(64, 96, 96)
+"""
+This method was adapted based on: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=5
+The method originally was used to load dicom images, now it has been changed to load .nii images
+"""
 def load_nii_image(path, img_size=(128, 128, 128), rotate=0):
     nii = nib.load(path)
     data = nii.get_fdata()
@@ -118,7 +113,10 @@ def load_nii_image(path, img_size=(128, 128, 128), rotate=0):
         data = new_data
 
     return data
-
+"""
+This method was adapted based on: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=5
+The method originally was used to load dicom images, now it has been changed to load 3D Images in .nii format
+"""
 
 def load_nii_images_3d(path, num_imgs=NUM_IMAGES, img_size=SIZE, mri_type="_FLAIR", split="train", rotate=0):
     # Check if the path exists
@@ -136,9 +134,10 @@ def load_nii_images_3d(path, num_imgs=NUM_IMAGES, img_size=SIZE, mri_type="_FLAI
 
     if not files[p1:p2]:
         raise ValueError(f"No files to process in the specified range. Path: {path}")
-
+        
+    # used for debugging
     # img3d = np.stack([load_nii_image(print(f"Processing file: {f}") or f, img_size=img_size, rotate=rotate) for f in files[p1:p2]])
-#     img3d = np.stack([load_nii_image(f, img_size=(64, 96, 96), rotate=rotate) for f in files[p1:p2]])
+
     img3d = np.stack([load_nii_image(f, img_size=(128, 128, 128), rotate=rotate) for f in files[p1:p2]])
 
 
@@ -157,7 +156,9 @@ print(a.shape)
 print(np.min(a), np.max(a), np.mean(a), np.median(a))
 
 print(extractIDwithoutNifTi("/data/UCSF-PDGM-0004_nifti"))
-
+"""
+This seed has been taken from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=6
+"""
 def set_seed(seed):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -171,23 +172,22 @@ set_seed(12)
 
 import pandas as pd
 
-# Load the DataFrame
+
 df = pd.read_csv('UCSF-PDGM-metadata_v2.csv')
 
-# Remove rows with null values in "MGMT status" column
+
 df = df.dropna(subset=['MGMT status'])
 
 # Convert the "MGMT status" column with updated mapping (indeterminate to NaN for removal)
 status_mapping = {'negative': 0, 'positive': 1, 'indeterminate': None}
 df['MGMT status'] = df['MGMT status'].map(status_mapping)
 
-# Now remove rows where "MGMT status" became None due to mapping (formerly indeterminate)
+# remove rows where "MGMT status" became None due to mapping (formerly indeterminate)
 df = df.dropna(subset=['MGMT status'])
 
 # Convert "MGMT status" to integer to ensure values are 0 and 1, not 0.0 and 1.0
 df['MGMT status'] = df['MGMT status'].astype(int)
 
-# Save the modified dataframe to a new CSV file
 output_path = 'filtered_output.csv'
 df.to_csv(output_path, index=False)
 
@@ -205,6 +205,9 @@ filter_non_existent_paths(csv_file, output_file)
 train_df = pd.read_csv("filtered_output_with_no_non_existant_paths.csv")
 # display(train_df)
 
+"""
+Split the model on an 80:20 split
+"""
 df_train, df_valid = sk_model_selection.train_test_split(
     train_df, 
     test_size=0.2, 
@@ -216,66 +219,14 @@ unique_values = train_df['MGMT status'].unique()
 print("Unique values in 'MGMT status':", unique_values)
 
 mri_types = ['_FLAIR','_T1','_T1c','_T2', 'all']
-# mri_types = ['_FLAIR']
+
 SIZE = 256
 NUM_IMAGES = 64
 
-def load_nii_image(path, img_size=(128, 128, 128), rotate=0):
-    nii = nib.load(path)
-    data = nii.get_fdata()
-
-    if rotate > 0:
-        rot_choices = [0, cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180]
-        if len(data.shape) == 3:
-            data = np.array([cv2.rotate(slice, rot_choices[rotate]) for slice in data])
-        else:
-            data = cv2.rotate(data, rot_choices[rotate])
-    
-    if len(data.shape) == 3:
-        data = np.array([cv2.resize(slice, (img_size[1], img_size[2]), interpolation=cv2.INTER_AREA) for slice in data])
-    else:
-        data = cv2.resize(data, (img_size[1], img_size[2]), interpolation=cv2.INTER_AREA)
-
-    # Resize depth if necessary
-    if data.shape[0] != img_size[0]:
-        new_data = np.zeros((img_size[0], img_size[1], img_size[2]))
-        depth = min(img_size[0], data.shape[0])
-        new_data[:depth] = data[:depth]
-        data = new_data
-
-    return data
-
-
-def load_nii_images_3d(path, num_imgs=NUM_IMAGES, img_size=SIZE, mri_type="_FLAIR", split="train", rotate=0):
-    # Check if the path exists
-    if not os.path.exists(path):
-        print(f"Path does not exist: {path}")
-        return None  # or handle the non-existent path as needed
-
-    files = sorted(glob.glob(path))
-    # print("Files found:", files)
-
-    middle = len(files) // 2
-    num_imgs2 = num_imgs // 2
-    p1 = max(0, middle - num_imgs2)
-    p2 = min(len(files), middle + num_imgs2)
-
-    if not files[p1:p2]:
-        raise ValueError(f"No files to process in the specified range. Path: {path}")
-
-    # img3d = np.stack([load_nii_image(print(f"Processing file: {f}") or f, img_size=img_size, rotate=rotate) for f in files[p1:p2]])
-    img3d = np.stack([load_nii_image(f, img_size=(128, 128, 128), rotate=rotate) for f in files[p1:p2]])
-
-
-    if img3d.shape[-1] < num_imgs:
-        n_zero = np.zeros((img_size, img_size, num_imgs - img3d.shape[-1]))
-        img3d = np.concatenate((img3d, n_zero), axis=-1)
-        
-    if np.min(img3d) < np.max(img3d):
-        img3d = img3d - np.min(img3d)
-        img3d = img3d / np.max(img3d)
-            
-    return np.expand_dims(img3d, 0)
+"""
+This class is used to load the data from the dataset and was adapted from https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=11
+This ensures the path and the ids loaded are correct
+"""
 
 class Dataset(torch_data.Dataset):
     def __init__(self, paths, targets=None, mri_type=None, label_smoothing=0.01, split="train", augment=False, img_size=SIZE, num_imgs=NUM_IMAGES):
@@ -294,50 +245,44 @@ class Dataset(torch_data.Dataset):
     def get_ids(self, index):
         # This method returns the corrected ID for a given index
         original_path = self.paths[index]
-        id_num = str(original_path).split('-')[-1] # This splits the ID and takes the last part, which is the number
-        padded_id_num = id_num.zfill(4)  # Zero padding to ensure 4 digits
+        # This splits the ID and takes the last part, which is the number
+        id_num = str(original_path).split('-')[-1] 
+        # Zero padding to ensure 4 digits
+        padded_id_num = id_num.zfill(4)  
         corrected_id = f"UCSF-PDGM-{padded_id_num}"
         
-#         corrected_path = f"/home/mm510/data/UCSF-PDGM-v3/UCSF-PDGM-{padded_id_num}_nifti/UCSF-PDGM-{padded_id_num}_FLAIR.nii"
         corrected_path = f"/data/UCSF-PDGM-{padded_id_num}_nifti/UCSF-PDGM-{padded_id_num}_FLAIR.nii"
         
         if not os.path.exists(corrected_path):
             print(f"Path does not exist for ID {corrected_id}: {corrected_path}. Skipping.")
-            return None  # Return None for non-existent paths
+            return None  
         
         return corrected_id
-
 
     def __getitem__(self, index):
         # Original path from the dataset
         original_path = self.paths[index]
-        # print("Original path in dataset used:", original_path)
 
-        # Correcting the path as per requirement
-        # Assuming 'UCSF-PDGM-36' needs to be converted to '/home/mm510/data/UCSF-PDGM-v3/UCSF-PDGM-0366_nifti/UCSF-PDGM-0366_FLAIR.nii'
         # Extract the numerical ID part and add zero padding
-        id_num = str(original_path).split('-')[-1]  # This splits the ID and takes the last part, which is the number
-        padded_id_num = id_num.zfill(4)  # Zero padding to ensure 4 digits
-#         corrected_path = f"/home/mm510/data/UCSF-PDGM-v3/UCSF-PDGM-{padded_id_num}_nifti/UCSF-PDGM-{padded_id_num}_FLAIR.nii"
+        id_num = str(original_path).split('-')[-1]  
+        padded_id_num = id_num.zfill(4)  
         corrected_path = f"/data/UCSF-PDGM-{padded_id_num}_nifti/UCSF-PDGM-{padded_id_num}_FLAIR.nii"
 
-        # Constructing the corrected ID
+
         corrected_id = f"UCSF-PDGM-{padded_id_num}"
 
         if not os.path.exists(corrected_path):
             print(f"Path does not exist: {corrected_path}. Skipping.")
             return None  # Return None for non-existent paths
 
-        # print("Corrected path used:", corrected_path)
-        # print("Corrected ID:", corrected_id)
 
-        # Augmentation logic remains unchanged
         if self.augment:
             rotation = np.random.randint(0, 4)
         else:
             rotation = 0
+            
+        # load the 3d data
 
-        # Assuming 'load_nii_images_3d' can handle the corrected path format
         data = load_nii_images_3d(corrected_path, num_imgs=self.num_imgs, img_size=self.img_size, mri_type=self.mri_type, split=self.split, rotate=rotation)
 
         # Return logic based on whether targets are provided
@@ -350,7 +295,9 @@ class Dataset(torch_data.Dataset):
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
-# helpers
+"""
+These classes were taken from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=13
+"""
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
@@ -424,38 +371,10 @@ class Transformer(nn.Module):
             x = ff(x) + x
         return x
 
-    
+ """
+ This model was implemented by me but inspired by: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=15
+ """   
 class Model(nn.Module):
-    # def __init__(self, *, image_size=(64, 96, 96), patch_size=(8, 8, 8), num_classes, dim, depth, heads, mlp_dim, channels=3, dropout=0., emb_dropout=0.):
-    #     super().__init__()
-    #     assert all(i % p == 0 for i, p in zip(image_size, patch_size)), 'Image dimensions must be divisible by the patch size'
-    #     # num_patches = (image_size // patch_size) *(image_size // patch_size)* 2
-    #     # num_patches = 3840
-    #     # print("patches: ", num_patches)
-    #     # patch_dim = channels * patch_size ** 3
-    #     num_patches = (image_size[0] // patch_size[0]) * (image_size[1] // patch_size[1]) * (image_size[2] // patch_size[2])
-    #     patch_dim = channels * patch_size[0] * patch_size[1] * patch_size[2]
-    #     self.patch_size = patch_size
-
-    #     self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
-    #     # print("embeddings: ", self.pos_embedding)
-    #     self.patch_to_embedding = nn.Linear(patch_dim, dim)
-    #     # print("patch embeddings: ", self.patch_to_embedding)
-    #     self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
-    #     self.dropout = nn.Dropout(emb_dropout)
-    #     #print (mlp_dim)
-    #     self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
-    #     #print (dim)
-    #     self.to_cls_token = nn.Identity()
-
-    #     self.mlp_head = nn.Sequential(
-    #         nn.LayerNorm(dim),
-    #         nn.Linear(dim, mlp_dim),
-    #         nn.GELU(),
-    #         nn.Dropout(dropout),
-    #         nn.Linear(mlp_dim, num_classes),
-    #         nn.Dropout(dropout)
-    #     )
 
     def __init__(self, *, image_size=(128, 128, 128), patch_size=(8, 8, 8), num_classes, dim, depth, heads, mlp_dim, channels=3, dropout=0., emb_dropout=0.):
         super().__init__()
@@ -473,10 +392,9 @@ class Model(nn.Module):
         self.patch_size = patch_size
 
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
-        # print("pos embeddings: ", self.pos_embedding)
-        # self.patch_to_embedding = nn.Linear(patch_dim, dim)
+
         self.patch_to_embedding = nn.Linear(512, dim)
-        # print("patch embeddings: ", self.patch_to_embedding)
+
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
         self.transformer = Transformer(dim, depth, heads, mlp_dim, dropout)
@@ -490,29 +408,10 @@ class Model(nn.Module):
             nn.Linear(mlp_dim, num_classes),
             nn.Dropout(dropout)
         )
-
-    # def forward(self, img, mask=None):
-    #     p = self.patch_size
-
-    #     # Squeeze the extra singleton dimension if present
-    #     # Check if there's an extra dimension at position 2 (0-indexed) and squeeze it
-    #     if img.size(1) == 1 and len(img.shape) == 6:  # Adjust this condition based on where the extra dimension might be
-    #         img = img.squeeze(1)  # This changes the shape from [4, 1, 1, 240, 256, 256] to [4, 1, 240, 256, 256]
-
-    #     # Now proceed with your original operation
-    #     x = rearrange(img, 'b c (h p1) (w p2) (d p3) -> b (h w d) (p1 p2 p3 c)', p1=p, p2=p, p3=p)
-
-    #     # The rest of your forward method remains unchanged
-    #     x = self.patch_to_embedding(x)
-    #     cls_tokens = self.cls_token.expand(img.shape[0], -1, -1)
-    #     x = torch.cat((cls_tokens, x), dim=1)
-    #     # print(x.shape)
-    #     # print(self.pos_embedding.shape)
-    #     x += self.pos_embedding
-    #     x = self.dropout(x)
-    #     x = self.transformer(x)
-    #     x = self.to_cls_token(x[:, 0])
-    #     return self.mlp_head(x)
+"""
+This method was adapted to ensure the expected shape and the image shape match afer squeezing, the debugging comments have been left in
+This has been adapated from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=15
+"""
         
     def forward(self, img, mask=None):
         p = self.patch_size
@@ -542,9 +441,11 @@ class Model(nn.Module):
 import csv
 import os
 
-
+"""
+This method creates a csv file and logs the results
+"""
 def init_csv_logger(file_path, headers):
-    # Check if the log file already exists
+
     file_exists = os.path.isfile(file_path)
     
     # Open the file in append mode
@@ -554,7 +455,9 @@ def init_csv_logger(file_path, headers):
         # Write the header only if the file is new
         if not file_exists:
             writer.writeheader()
-
+"""
+This class is used to train the model and was taken from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=17
+"""
 class Trainer:
     def __init__(
         self, 
@@ -572,6 +475,9 @@ class Trainer:
         self.n_patience = 0
         self.lastmodel = None
         
+        """
+        This method was adapted to log the training and validation values
+        """
     def fit(self, epochs, train_loader, valid_loader, save_path, patience, log_file, mri_type):   
         headers = ["epoch", "train_loss", "valid_loss", "valid_auc", "train_time", "valid_time", "mri_type"]
         init_csv_logger(log_file, headers)
@@ -683,6 +589,9 @@ class Trainer:
             self.lastmodel,
         )
     
+    """
+    This method was implemented by me as an alternative to always running the model and waiting for it to run.
+    """
     def load_pretrained_model(self, state_path):
         checkpoint = torch.load(state_path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
@@ -697,6 +606,10 @@ class Trainer:
         
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+"""
+This has been modified from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=19 
+to retrieve data on the basis of "ID" rather than "Brats21ID"
+"""
 def train_mri_type(df_train, df_valid, mri_type):
     if mri_type=="all":
         train_list = []
@@ -729,7 +642,9 @@ def train_mri_type(df_train, df_valid, mri_type):
         df_valid["MGMT status"].values,
         df_valid["MRI_Type"].values
     )
-
+# by setting batch size to 1, for each modality, the model will train on 327 volumes and validate on 82 volumes
+# for "all" the model will train on 1635 volumes and validate on 410 volumes
+# batch size is set low to avoid OutOfMemory errors
     train_loader = torch_data.DataLoader(
         train_data_retriever,
         batch_size=1,
@@ -777,7 +692,7 @@ def train_mri_type(df_train, df_valid, mri_type):
         optimizer, 
         criterion
     )
-
+#### model is trained here
     history = trainer.fit(
         10, 
         train_loader, 
@@ -803,7 +718,10 @@ modelfiles = None
 if not modelfiles:
     modelfiles = [train_mri_type(df_train, df_valid, m) for m in mri_types]
     print(modelfiles)
-    
+"""
+This method has been taken from: https://www.kaggle.com/code/super13579/vit-vision-transformer-3d-with-one-mri-type?scriptVersionId=77546815&cellId=21 and it is used to predict
+the methylation status based on mri_type
+"""
 def predict(modelfile, df, mri_type, split):
     print("Predict:", modelfile, mri_type, df.shape)
     # df.loc[:,"MRI_Type"] = mri_type
@@ -866,7 +784,9 @@ df_valid = df_valid.set_index("ID")
 
 true_values_column_name = "MGMT status" 
 
-
+"""
+These steps are used to generate the plot
+"""
 for m, mtype in zip(modelfiles, mri_types):
     pred = predict(m, df_valid, mtype, "train")
     if "MGMT_pred" not in df_valid.columns:

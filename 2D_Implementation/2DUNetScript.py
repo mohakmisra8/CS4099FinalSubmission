@@ -1,5 +1,5 @@
 """
-The Notebook script was converted to Python and run for training.
+The Notebook script was converted to Python and run for training. The model inspiration is taken from: https://www.kaggle.com/code/rastislav/3d-mri-brain-tumor-segmentation-u-net#Train-model
 """
 import os
 # import cv2
